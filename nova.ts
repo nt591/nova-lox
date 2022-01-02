@@ -24,7 +24,8 @@ export class Nova {
 
   private static async runPrompt(): Promise<void> {
     while (true) {
-      console.log("> ");
+      const p = new TextEncoder().encode("> ");
+      await Deno.stdout.write(p);
       const lines = await readLines(Deno.stdin);
       for await (const line of lines) {
         this.run(line);
@@ -37,7 +38,7 @@ export class Nova {
     const tokens = scanner.scanTokens();
 
     for (const token of tokens) {
-      console.log(token);
+      console.log(token + "");
     }
   }
 
