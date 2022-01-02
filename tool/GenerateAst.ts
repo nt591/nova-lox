@@ -33,7 +33,7 @@ class GenerateAst {
     // import types
     await this.appendToFile(encoder, "import { Token } from './Token.ts';", path);
 
-    await this.appendToFile(encoder, `abstract class ${baseName} {`, path);
+    await this.appendToFile(encoder, `export abstract class ${baseName} {`, path);
     // base accept method for abstract class
     await this.appendToFile(encoder, "  abstract accept<R>(visitor: Visitor<R>) : R;", path)
     await this.appendToFile(encoder, "}", path);
@@ -93,7 +93,7 @@ class GenerateAst {
   }
 
   private static async defineVisitor(encoder: TextEncoder, path: string, baseName: string, types: Array<string>): Promise<void> {
-    await this.appendToFile(encoder, "interface Visitor<R> {", path);
+    await this.appendToFile(encoder, "export interface Visitor<R> {", path);
 
     for (const type of types) {
       const typename = type.split("#")[0].trim();
