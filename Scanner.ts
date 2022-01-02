@@ -141,7 +141,7 @@ export class Scanner {
       while (this.isDigit(this.peek())) this.advance();
     }
 
-    this.addTokenWithLiteral(
+    this.addToken(
       TokenType.NUMBER,
       Number(this.source.slice(this.start, this.current)),
     );
@@ -177,7 +177,7 @@ export class Scanner {
 
     // trim surrounding quotes so we don't turn "hello world" into ""hello world""
     const text = this.source.slice(this.start + 1, this.current - 1);
-    this.addTokenWithLiteral(TokenType.STRING, text);
+    this.addToken(TokenType.STRING, text);
   }
 
   private match(expected: string): boolean {
@@ -220,11 +220,7 @@ export class Scanner {
     return this.source[this.current++];
   }
 
-  private addToken(type: TokenType): void {
-    this.addTokenWithLiteral(type, null);
-  }
-
-  private addTokenWithLiteral(type: TokenType, literal: literal | null) {
+  private addToken(type: TokenType, literal: literal|null = null): void {
     const text = this.source.slice(this.start, this.current);
     this.tokens.push(new Token(type, text, literal, this.line));
   }
