@@ -220,8 +220,9 @@ export class Scanner {
     return this.source[this.current++];
   }
 
-  private addToken(type: TokenType, literal: literal|null = null): void {
+  private addToken(type: TokenType, literal?: literal): void {
     const text = this.source.slice(this.start, this.current);
-    this.tokens.push(new Token(type, text, literal, this.line));
+    const tokenLiteral = literal ? literal : null; 
+    this.tokens.push(new Token(type, text, tokenLiteral, this.line));
   }
 }
