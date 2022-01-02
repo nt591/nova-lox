@@ -1,12 +1,34 @@
 import { literal, Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
+import { Nova} from "./nova.ts";
 
-class Scanner {
+export class Scanner {
   private readonly source: string;
   private readonly tokens: Array<Token> = [];
   private start = 0;
   private current = 0;
   private line = 1;
+
+  private static readonly keywords: Map<string, TokenType> = new Map();
+
+  static {
+    this.keywords.set("and", TokenType.AND);
+    this.keywords.set("class", TokenType.CLASS);
+    this.keywords.set("else", TokenType.ELSE);
+    this.keywords.set("false", TokenType.FALSE);
+    this.keywords.set("for", TokenType.FOR);
+    this.keywords.set("fun", TokenType.FUN);
+    this.keywords.set("if", TokenType.IF);
+    this.keywords.set("nil", TokenType.NIL);
+    this.keywords.set("or", TokenType.OR);
+    this.keywords.set("print", TokenType.PRINT);
+    this.keywords.set("return", TokenType.RETURN);
+    this.keywords.set("super", TokenType.SUPER);
+    this.keywords.set("this", TokenType.THIS);
+    this.keywords.set("true", TokenType.TRUE);
+    this.keywords.set("var", TokenType.VAR);
+    this.keywords.set("while", TokenType.WHILE);
+  }
 
   constructor(source: string) {
     this.source = source;
@@ -98,6 +120,8 @@ class Scanner {
       default:
         if (this.isDigit(c)) {
           this.number();
+        } else if (this.isAlpha(c)) {
+          this.identifier();
         } else {
           Nova.error(this.line, "Unexpected character.");
         }
@@ -121,6 +145,18 @@ class Scanner {
       TokenType.NUMBER,
       Number(this.source.slice(this.start, this.current)),
     );
+  }
+
+  private identifier(): void {
+    // lookahead for all alphanumerics and assume those are part of the identifier
+    // when we hit anything else like a slash, space, plus, etc we are done
+    while (this.isAlphaNumeric(this.peek())) this.advance();
+
+    // ensure that our identifier isn't a reserved keyword
+    // and if it is, use that TokenType
+    const text = this.source.slice(this.start, this.current);
+    const type : TokenType = Scanner.keywords.get(text) ?? TokenType.IDENTIFIER;
+    this.addToken(type);
   }
 
   private string(): void {
@@ -157,14 +193,25 @@ class Scanner {
   }
 
   private peekNext(): string {
-      if (this.current + 1 >= this.source.length) return "\0";
-      return this.source[this.current + 1];
+    if (this.current + 1 >= this.source.length) return "\0";
+    return this.source[this.current + 1];
   }
 
   private isDigit(char: string): boolean {
     // todo: cast to number?
     return char >= "0" && char <= "9";
   }
+
+  private isAlpha(c: string): boolean {
+    return (c >= "a" && c <= "z") ||
+      (c >= "A" && c <= "Z") ||
+      c == "_"; // imagine a variable 'first_name'
+  }
+
+  private isAlphaNumeric(c: string): boolean {
+      return this.isAlpha(c) || this.isDigit(c);
+  }
+
   private isAtEnd(): boolean {
     return this.current >= this.source.length;
   }

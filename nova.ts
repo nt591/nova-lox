@@ -1,6 +1,7 @@
-import { readAll } from "https://deno.land/std@0.119.0/streams/conversion.ts";
+import { readLines } from "https://deno.land/std@0.119.0/io/buffer.ts";
+import { Scanner } from "./Scanner.ts";
 
-class Nova {
+export class Nova {
   static hadError = false;
 
   static async main(): Promise<void> {
@@ -24,10 +25,10 @@ class Nova {
   private static async runPrompt(): Promise<void> {
     while (true) {
       console.log("> ");
-      const text = await readAll(Deno.stdin).trim();
-      if (!text || text === "") break;
-      this.run(text);
-      this.hadError = false;
+      const lines = await readLines(Deno.stdin);
+      for await (const line of lines) {
+        this.run(line);
+      }
     }
   }
 
@@ -40,7 +41,7 @@ class Nova {
     }
   }
 
-  private static error(line: number, message: string): void {
+  public static error(line: number, message: string): void {
     this.report(line, "", message);
   }
 
