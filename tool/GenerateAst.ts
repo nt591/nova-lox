@@ -31,10 +31,15 @@ class GenerateAst {
     const encoder = new TextEncoder();
 
     // import types
-    await this.appendToFile(encoder, "import { Token } from '../Token.ts';", path);
+    await this.appendToFile(encoder, "import { Token } from './Token.ts';", path);
 
     await this.appendToFile(encoder, `abstract class ${baseName} {`, path);
+    // base accept method for abstract class
+    await this.appendToFile(encoder, "  abstract accept<R>(visitor: Visitor<R>) : R;", path)
     await this.appendToFile(encoder, "}", path);
+
+    // write visitor
+    await this.defineVisitor(encoder, path, baseName, types);
 
     // write AST classes
     for (const type of types) {
@@ -54,27 +59,46 @@ class GenerateAst {
   ) {
     await this.appendToFile(
       encoder,
-      `class ${className} extends ${baseName} {`,
+      `export class ${className} extends ${baseName} {`,
       path,
     );
 
-    // constructor
+    // fields
+    const fieldList = fields.split(", ");
+    for (const field of fieldList) {
+      await this.appendToFile(encoder, `  readonly ${field};`, path);
+    }
+
+    // constructor: start
     await this.appendToFile(encoder, `  constructor(${fields}) {`, path);
     
     // forced super call
     await this.appendToFile(encoder, "    super();", path);
+    
     // store fields
-    const fieldList = fields.split(", ");
     for (const field of fieldList) {
       const name = field.split(" : ")[0];
       await this.appendToFile(encoder, `    this.${name} = ${name};`, path);
     }
     await this.appendToFile(encoder, "  }", path);
+    // constructor: end
 
-    // fields
+    // override Visitor pattern
     await this.appendToFile(encoder, "", path);
-    for (const field of fieldList) {
-      await this.appendToFile(encoder, `  readonly ${field};`, path);
+    await this.appendToFile(encoder,`  accept<R>(visitor: Visitor<R>) : R {`, path);
+    await this.appendToFile(encoder, `    return visitor.visit${className}${baseName}(this);`, path);
+    await this.appendToFile(encoder, `  }`, path);
+
+    await this.appendToFile(encoder, "}", path);
+  }
+
+  private static async defineVisitor(encoder: TextEncoder, path: string, baseName: string, types: Array<string>): Promise<void> {
+    await this.appendToFile(encoder, "interface Visitor<R> {", path);
+
+    for (const type of types) {
+      const typename = type.split("#")[0].trim();
+      const visitorMethodName = `  visit${typename}${baseName}(${baseName.toLowerCase()} : ${typename}) : R;`
+      await this.appendToFile(encoder, visitorMethodName, path);
     }
 
     await this.appendToFile(encoder, "}", path);
