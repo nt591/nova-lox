@@ -1,6 +1,6 @@
 import { TokenType }  from "./TokenType.ts";
 
-export type literal = string | number;
+export type literal = string | number | boolean;
 
 export class Token {
     readonly type: TokenType;

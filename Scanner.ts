@@ -1,6 +1,6 @@
 import { literal, Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
-import { Nova} from "./nova.ts";
+import { Nova} from "./Nova.ts";
 
 export class Scanner {
   private readonly source: string;

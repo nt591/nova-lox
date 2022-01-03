@@ -10,7 +10,7 @@ class GenerateAst {
     await this.defineAst(outputDir, "Expr", [
       "Binary   # left : Expr, operator : Token, right : Expr",
       "Grouping # expression : Expr",
-      "Literal  # value : string | number | null",
+      "Literal  # value : string | number | boolean | null",
       "Unary    # operator : Token, right : Expr",
     ]);
   }

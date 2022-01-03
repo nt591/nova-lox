@@ -35,8 +35,8 @@ export class Grouping extends Expr {
   }
 }
 export class Literal extends Expr {
-  readonly value : string | number | null;
-  constructor(value : string | number | null) {
+  readonly value : string | number | boolean | null;
+  constructor(value : string | number | boolean | null) {
     super();
     this.value = value;
   }

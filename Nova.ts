@@ -1,5 +1,9 @@
 import { readLines } from "https://deno.land/std@0.119.0/io/buffer.ts";
+import { AstPrinter } from "./AstPrinter.ts";
+import { Parser } from "./Parser.ts";
 import { Scanner } from "./Scanner.ts";
+import { Token } from "./Token.ts";
+import { TokenType } from "./TokenType.ts";
 
 export class Nova {
   static hadError = false;
@@ -36,14 +40,23 @@ export class Nova {
   private static run(source: string): void {
     const scanner = new Scanner(source);
     const tokens = scanner.scanTokens();
+    const parser = new Parser(tokens);
+    const expression = parser.parse();
 
-    for (const token of tokens) {
-      console.log(token + "");
-    }
+    if (this.hadError) return; // parser syntax error
+    console.log(new AstPrinter().print(expression));
   }
 
   public static error(line: number, message: string): void {
     this.report(line, "", message);
+  }
+
+  public static errorAtToken(token: Token, message: string) : void {
+    if (token.type === TokenType.EOF) {
+      this.report(token.line, " at end", message);
+    } else {
+      this.report(token.line, ` at '${token.lexeme}'`, message);
+    }
   }
 
   private static report(line: number, where: string, message: string): void {
