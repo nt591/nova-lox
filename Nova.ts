@@ -1,12 +1,16 @@
 import { readLines } from "https://deno.land/std@0.119.0/io/buffer.ts";
 import { AstPrinter } from "./AstPrinter.ts";
+import { Interpreter } from "./Interpreter.ts";
 import { Parser } from "./Parser.ts";
+import { RuntimeError } from "./RuntimeError.ts";
 import { Scanner } from "./Scanner.ts";
 import { Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
 
 export class Nova {
   static hadError = false;
+  static hadRuntimeError = false;
+  private static readonly interpreter = new Interpreter();
 
   static async main(): Promise<void> {
     const args = Deno.args;
@@ -24,6 +28,7 @@ export class Nova {
     const text = await Deno.readTextFile(filename);
     this.run(text);
     if (this.hadError) Deno.exit(65);
+    if (this.hadRuntimeError) Deno.exit(70);
   }
 
   private static async runPrompt(): Promise<void> {
@@ -44,14 +49,21 @@ export class Nova {
     const expression = parser.parse();
 
     if (this.hadError) return; // parser syntax error
-    console.log(new AstPrinter().print(expression));
+    this.interpreter.interpret(expression);
+    // placeholder
+    // console.log(new AstPrinter().print(expression));
   }
 
   public static error(line: number, message: string): void {
     this.report(line, "", message);
   }
 
-  public static errorAtToken(token: Token, message: string) : void {
+  public static runtimeError(error: RuntimeError): void {
+    console.log(`${error.message}\n[line ${error.token.line}]`);
+    this.hadRuntimeError = true;
+  }
+
+  public static errorAtToken(token: Token, message: string): void {
     if (token.type === TokenType.EOF) {
       this.report(token.line, " at end", message);
     } else {

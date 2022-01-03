@@ -1,6 +1,6 @@
 import { literal, Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
-import { Nova} from "./Nova.ts";
+import { Nova } from "./Nova.ts";
 
 export class Scanner {
   private readonly source: string;
@@ -143,7 +143,7 @@ export class Scanner {
 
     this.addToken(
       TokenType.NUMBER,
-      Number(this.source.slice(this.start, this.current)),
+      Number(this.source.substring(this.start, this.current)),
     );
   }
 
@@ -154,8 +154,8 @@ export class Scanner {
 
     // ensure that our identifier isn't a reserved keyword
     // and if it is, use that TokenType
-    const text = this.source.slice(this.start, this.current);
-    const type : TokenType = Scanner.keywords.get(text) ?? TokenType.IDENTIFIER;
+    const text = this.source.substring(this.start, this.current);
+    const type: TokenType = Scanner.keywords.get(text) ?? TokenType.IDENTIFIER;
     this.addToken(type);
   }
 
@@ -176,7 +176,7 @@ export class Scanner {
     this.advance();
 
     // trim surrounding quotes so we don't turn "hello world" into ""hello world""
-    const text = this.source.slice(this.start + 1, this.current - 1);
+    const text = this.source.substring(this.start + 1, this.current - 1);
     this.addToken(TokenType.STRING, text);
   }
 
@@ -209,7 +209,7 @@ export class Scanner {
   }
 
   private isAlphaNumeric(c: string): boolean {
-      return this.isAlpha(c) || this.isDigit(c);
+    return this.isAlpha(c) || this.isDigit(c);
   }
 
   private isAtEnd(): boolean {
@@ -221,8 +221,8 @@ export class Scanner {
   }
 
   private addToken(type: TokenType, literal?: literal): void {
-    const text = this.source.slice(this.start, this.current);
-    const tokenLiteral = literal ? literal : null; 
+    const text = this.source.substring(this.start, this.current);
+    const tokenLiteral = literal ? literal : null;
     this.tokens.push(new Token(type, text, tokenLiteral, this.line));
   }
 }
