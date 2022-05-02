@@ -4,6 +4,7 @@ import {
   Expr,
   Grouping,
   Literal,
+  Logical,
   Unary,
   Variable,
   Visitor as ExprVisitor,
@@ -11,6 +12,7 @@ import {
 import {
   Block,
   Expression,
+  If,
   Print,
   Stmt,
   Var,
@@ -41,6 +43,14 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
     this.evaluate(stmt.expression);
   }
 
+  visitIfStmt(stmt: If): void {
+    if (this.isTruthy(this.evaluate(stmt.condition))) {
+      this.execute(stmt.thenBranch);
+    } else if (stmt.elseBranch !== null) {
+      this.execute(stmt.elseBranch);
+    }
+  }
+
   visitPrintStmt(stmt: Print): void {
     const value: NovaObject = this.evaluate(stmt.expression);
     console.log(this.stringify(value));
@@ -62,6 +72,18 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
 
   visitLiteralExpr(expr: Literal): NovaObject {
     return expr.value;
+  }
+
+  visitLogicalExpr(expr: Logical): NovaObject {
+    const left: NovaObject = this.evaluate(expr.left);
+    if (expr.operator.type === TokenType.OR) {
+      if (this.isTruthy(left)) return left;
+    } else {
+      // and
+      if (!this.isTruthy(left)) return left;
+    }
+
+    return this.evaluate(expr.right);
   }
 
   visitGroupingExpr(expr: Grouping): NovaObject {

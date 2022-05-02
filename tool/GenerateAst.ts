@@ -12,6 +12,7 @@ class GenerateAst {
       "Binary   # left : Expr, operator : Token, right : Expr",
       "Grouping # expression : Expr",
       "Literal  # value : string | number | boolean | null",
+      "Logical # left : Expr, operator : Token, right : Expr",
       "Unary    # operator : Token, right : Expr",
       "Variable # name : Token",
     ], ["import { Token } from './Token.ts';"]);
@@ -19,6 +20,7 @@ class GenerateAst {
     await this.defineAst(outputDir, "Stmt", [
       "Block      # statements : Array<Stmt>",
       "Expression # expression : Expr",
+      "If         # condition : Expr, thenBranch : Stmt, elseBranch : Stmt | null",
       "Print # expression : Expr",
       "Var # name : Token, initializer : Expr | null",
     ], [

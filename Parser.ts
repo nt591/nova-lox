@@ -5,12 +5,13 @@ import {
   Expr,
   Grouping,
   Literal,
+  Logical,
   Unary,
   Variable,
 } from "./Expr.ts";
 import { TokenType } from "./TokenType.ts";
 import { Nova } from "./Nova.ts";
-import { Block, Expression, Print, Stmt, Var } from "./Stmt.ts";
+import { Block, Expression, If, Print, Stmt, Var } from "./Stmt.ts";
 
 /* RULES FOR PRODUCTION
 program        → declaration * EOF ;
@@ -18,14 +19,19 @@ declaration    → varDecl
                | statement ;
 varDecl        → "var" IDENTIFIER ( "=" expression)? ";" ;
 statement      → exprStmt
+               | ifStmt
                | printStmt
                | block ;
+ifStmt         → "if" "(" expression ")" statement
+                ( "else" statement )? ;
 block          → "{" declaration* "}" ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 expression     → assignment ;
 assignment     → IDENTIFIER "=" assignment
-               | equality ;
+               | logic_or ;
+logic_or       → logic_and ( "or" logic_and )* ;
+logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
@@ -75,11 +81,24 @@ export class Parser {
      printStmt -> "print" expression ";" ;
   */
   private statement(): Stmt {
+    if (this.match(TokenType.IF)) return this.ifStatement();
     if (this.match(TokenType.PRINT)) return this.printStatement();
     if (this.match(TokenType.LEFT_BRACE)) return new Block(this.block());
     return this.expressionStatement();
   }
 
+  private ifStatement(): Stmt {
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.");
+    const condition: Expr = this.expression();
+    this.consume(TokenType.RIGHT_PAREN, "Expect '(' after if condition.");
+
+    const thenBranch = this.statement();
+    const elseBranch: Stmt | null = this.match(TokenType.ELSE)
+      ? this.statement()
+      : null;
+
+    return new If(condition, thenBranch, elseBranch);
+  }
   private printStatement(): Stmt {
     const value: Expr = this.expression();
     this.consume(TokenType.SEMICOLON, "Expect ';' after value.");
@@ -105,7 +124,7 @@ export class Parser {
   }
 
   private assignment(): Expr {
-    const expr = this.equality();
+    const expr = this.or();
     if (this.match(TokenType.EQUAL)) {
       const equals: Token = this.previous();
       const value = this.assignment();
@@ -115,6 +134,28 @@ export class Parser {
       }
 
       this.error(equals, "Invalid assignment target.");
+    }
+
+    return expr;
+  }
+
+  private or(): Expr {
+    let expr: Expr = this.and();
+    while (this.match(TokenType.OR)) {
+      const operator: Token = this.previous();
+      const right = this.and();
+      expr = new Logical(expr, operator, right);
+    }
+
+    return expr;
+  }
+
+  private and(): Expr {
+    let expr = this.equality();
+    while (this.match(TokenType.AND)) {
+      const operator: Token = this.previous();
+      const right = this.equality();
+      expr = new Logical(expr, operator, right);
     }
 
     return expr;
