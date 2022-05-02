@@ -1,20 +1,32 @@
 import {
+  Assign,
   Binary,
   Expr,
   Grouping,
   Literal,
   Unary,
+  Variable,
   Visitor as ExprVisitor,
 } from "./Expr.ts";
-import { Expression, Print, Stmt, Visitor as StmtVisitor } from "./Stmt.ts";
+import {
+  Block,
+  Expression,
+  Print,
+  Stmt,
+  Var,
+  Visitor as StmtVisitor,
+} from "./Stmt.ts";
 import { Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
 import { RuntimeError } from "./RuntimeError.ts";
 import { Nova } from "./Nova.ts";
+import { Environment } from "./Environment.ts";
 
 type NovaObject = unknown;
 
 export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
+  #environment = new Environment(null);
+
   interpret(statements: Array<Stmt>): void {
     try {
       for (const statement of statements) {
@@ -32,6 +44,20 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
   visitPrintStmt(stmt: Print): void {
     const value: NovaObject = this.evaluate(stmt.expression);
     console.log(this.stringify(value));
+  }
+
+  visitVarStmt(stmt: Var): void {
+    let val = null;
+    if (stmt.initializer != null) {
+      val = this.evaluate(stmt.initializer);
+    }
+    this.#environment.define(stmt.name.lexeme, val);
+  }
+
+  visitAssignExpr(expr: Assign): unknown {
+    const value = this.evaluate(expr.value);
+    this.#environment.assign(expr.name, value);
+    return value;
   }
 
   visitLiteralExpr(expr: Literal): NovaObject {
@@ -54,6 +80,14 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
 
     // unreachable
     return null;
+  }
+
+  visitVariableExpr(expr: Variable): unknown {
+    return this.#environment.get(expr.name);
+  }
+
+  visitBlockStmt(stmt: Block): void {
+    this.executeBlock(stmt.statements, new Environment(this.#environment));
   }
 
   visitBinaryExpr(expr: Binary): NovaObject {
@@ -134,6 +168,18 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
 
   private execute(stmt: Stmt): void {
     stmt.accept(this);
+  }
+
+  executeBlock(statements: Array<Stmt>, environment: Environment) {
+    const previous: Environment = this.#environment;
+    try {
+      this.#environment = environment;
+      for (const statement of statements) {
+        this.execute(statement);
+      }
+    } finally {
+      this.#environment = previous;
+    }
   }
 
   private isTruthy(obj: NovaObject): boolean {

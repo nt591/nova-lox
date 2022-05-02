@@ -1,16 +1,31 @@
 import { Token } from "./Token.ts";
-import { Binary, Expr, Grouping, Literal, Unary } from "./Expr.ts";
+import {
+  Assign,
+  Binary,
+  Expr,
+  Grouping,
+  Literal,
+  Unary,
+  Variable,
+} from "./Expr.ts";
 import { TokenType } from "./TokenType.ts";
 import { Nova } from "./Nova.ts";
-import { Expression, Print, Stmt } from "./Stmt.ts";
+import { Block, Expression, Print, Stmt, Var } from "./Stmt.ts";
 
 /* RULES FOR PRODUCTION
-program        → statement* EOF ;
+program        → declaration * EOF ;
+declaration    → varDecl
+               | statement ;
+varDecl        → "var" IDENTIFIER ( "=" expression)? ";" ;
 statement      → exprStmt
-               | printStmt ;
+               | printStmt
+               | block ;
+block          → "{" declaration* "}" ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
-expression     → equality ;
+expression     → assignment ;
+assignment     → IDENTIFIER "=" assignment
+               | equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
@@ -18,7 +33,7 @@ factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
                | primary ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" ;
+               | "(" expression ")" | IDENTIFIER;
 */
 export class Parser {
   private readonly tokens: Array<Token>;
@@ -32,23 +47,36 @@ export class Parser {
   parse(): Array<Stmt> {
     const statements: Array<Stmt> = [];
     while (!this.isAtEnd()) {
-      statements.push(this.statement());
+      const decl = this.declaration();
+      if (decl === null) continue;
+      statements.push(decl);
     }
 
     return statements;
   }
 
-  /* expression -> equality */
+  /* expression -> assignment */
   private expression(): Expr {
-    return this.equality();
+    return this.assignment();
   }
 
+  /* declaration -> varDecl | statement; */
+  private declaration(): Stmt | null {
+    try {
+      if (this.match(TokenType.VAR)) return this.varDeclaration();
+      return this.statement();
+    } catch {
+      this.synchronize();
+      return null;
+    }
+  }
   /* statament -> exprStmt | printStmt;
      exprStmt -> expression ";" ;
      printStmt -> "print" expression ";" ;
   */
   private statement(): Stmt {
     if (this.match(TokenType.PRINT)) return this.printStatement();
+    if (this.match(TokenType.LEFT_BRACE)) return new Block(this.block());
     return this.expressionStatement();
   }
 
@@ -62,6 +90,47 @@ export class Parser {
     const expr: Expr = this.expression();
     this.consume(TokenType.SEMICOLON, "Expect ';' after expression.");
     return new Expression(expr);
+  }
+
+  private block(): Array<Stmt> {
+    const statements: Array<Stmt> = [];
+    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+      const decl = this.declaration();
+      if (decl === null) continue;
+      statements.push(decl);
+    }
+
+    this.consume(TokenType.RIGHT_BRACE, "Expect '}' after block");
+    return statements;
+  }
+
+  private assignment(): Expr {
+    const expr = this.equality();
+    if (this.match(TokenType.EQUAL)) {
+      const equals: Token = this.previous();
+      const value = this.assignment();
+      if (expr instanceof Variable) {
+        const name: Token = expr.name;
+        return new Assign(name, value);
+      }
+
+      this.error(equals, "Invalid assignment target.");
+    }
+
+    return expr;
+  }
+
+  private varDeclaration(): Stmt {
+    const name: Token = this.consume(
+      TokenType.IDENTIFIER,
+      "Expect variable name.",
+    );
+    let initializer: Expr | null = null;
+    if (this.match(TokenType.EQUAL)) {
+      initializer = this.expression();
+    }
+    this.consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
+    return new Var(name, initializer);
   }
 
   /* equality -> comparison ( ( "!=" | "==") comparison)*
@@ -157,6 +226,11 @@ export class Parser {
     if (this.match(TokenType.NUMBER, TokenType.STRING)) {
       return new Literal(this.previous().literal);
     }
+
+    if (this.match(TokenType.IDENTIFIER)) {
+      return new Variable(this.previous());
+    }
+
     if (this.match(TokenType.LEFT_PAREN)) {
       const expr = this.expression();
       this.consume(TokenType.RIGHT_PAREN, "Expected ')' after expression.");

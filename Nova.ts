@@ -1,5 +1,4 @@
 import { readLines } from "https://deno.land/std@0.119.0/io/buffer.ts";
-import { AstPrinter as _AstPrinter } from "./AstPrinter.ts";
 import { Interpreter } from "./Interpreter.ts";
 import { Parser } from "./Parser.ts";
 import { RuntimeError } from "./RuntimeError.ts";

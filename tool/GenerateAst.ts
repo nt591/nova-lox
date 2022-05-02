@@ -8,16 +8,23 @@ class GenerateAst {
 
     const outputDir: string = args[0];
     await this.defineAst(outputDir, "Expr", [
+      "Assign   # name : Token, value : Expr",
       "Binary   # left : Expr, operator : Token, right : Expr",
       "Grouping # expression : Expr",
       "Literal  # value : string | number | boolean | null",
       "Unary    # operator : Token, right : Expr",
+      "Variable # name : Token",
     ], ["import { Token } from './Token.ts';"]);
 
     await this.defineAst(outputDir, "Stmt", [
+      "Block      # statements : Array<Stmt>",
       "Expression # expression : Expr",
       "Print # expression : Expr",
-    ], ["import { Expr } from './Expr.ts';"]);
+      "Var # name : Token, initializer : Expr | null",
+    ], [
+      "import { Expr } from './Expr.ts';",
+      "import { Token } from './Token.ts';",
+    ]);
   }
 
   private static async defineAst(
