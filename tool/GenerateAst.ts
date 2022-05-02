@@ -12,16 +12,22 @@ class GenerateAst {
       "Grouping # expression : Expr",
       "Literal  # value : string | number | boolean | null",
       "Unary    # operator : Token, right : Expr",
-    ]);
+    ], ["import { Token } from './Token.ts';"]);
+
+    await this.defineAst(outputDir, "Stmt", [
+      "Expression # expression : Expr",
+      "Print # expression : Expr",
+    ], ["import { Expr } from './Expr.ts';"]);
   }
 
   private static async defineAst(
     outputDir: string,
     baseName: string,
     types: Array<string>,
+    imports: Array<string>,
   ): Promise<void> {
     try {
-     await Deno.mkdir(outputDir); 
+      await Deno.mkdir(outputDir);
     } catch {
       //swallow error if exists
     }
@@ -31,11 +37,25 @@ class GenerateAst {
     const encoder = new TextEncoder();
 
     // import types
-    await this.appendToFile(encoder, "import { Token } from './Token.ts';", path);
+    for (const impt of imports) {
+      await this.appendToFile(
+        encoder,
+        impt,
+        path,
+      );
+    }
 
-    await this.appendToFile(encoder, `export abstract class ${baseName} {`, path);
+    await this.appendToFile(
+      encoder,
+      `export abstract class ${baseName} {`,
+      path,
+    );
     // base accept method for abstract class
-    await this.appendToFile(encoder, "  abstract accept<R>(visitor: Visitor<R>) : R;", path)
+    await this.appendToFile(
+      encoder,
+      "  abstract accept<R>(visitor: Visitor<R>) : R;",
+      path,
+    );
     await this.appendToFile(encoder, "}", path);
 
     // write visitor
@@ -44,7 +64,13 @@ class GenerateAst {
     // write AST classes
     for (const type of types) {
       const [className, fields] = type.split("#");
-      await this.defineType(path, encoder, baseName, className.trim(), fields.trim());
+      await this.defineType(
+        path,
+        encoder,
+        baseName,
+        className.trim(),
+        fields.trim(),
+      );
     }
 
     await this.appendToFile(encoder, "", path);
@@ -71,10 +97,10 @@ class GenerateAst {
 
     // constructor: start
     await this.appendToFile(encoder, `  constructor(${fields}) {`, path);
-    
+
     // forced super call
     await this.appendToFile(encoder, "    super();", path);
-    
+
     // store fields
     for (const field of fieldList) {
       const name = field.split(" : ")[0];
@@ -85,19 +111,33 @@ class GenerateAst {
 
     // override Visitor pattern
     await this.appendToFile(encoder, "", path);
-    await this.appendToFile(encoder,`  accept<R>(visitor: Visitor<R>) : R {`, path);
-    await this.appendToFile(encoder, `    return visitor.visit${className}${baseName}(this);`, path);
+    await this.appendToFile(
+      encoder,
+      `  accept<R>(visitor: Visitor<R>) : R {`,
+      path,
+    );
+    await this.appendToFile(
+      encoder,
+      `    return visitor.visit${className}${baseName}(this);`,
+      path,
+    );
     await this.appendToFile(encoder, `  }`, path);
 
     await this.appendToFile(encoder, "}", path);
   }
 
-  private static async defineVisitor(encoder: TextEncoder, path: string, baseName: string, types: Array<string>): Promise<void> {
+  private static async defineVisitor(
+    encoder: TextEncoder,
+    path: string,
+    baseName: string,
+    types: Array<string>,
+  ): Promise<void> {
     await this.appendToFile(encoder, "export interface Visitor<R> {", path);
 
     for (const type of types) {
       const typename = type.split("#")[0].trim();
-      const visitorMethodName = `  visit${typename}${baseName}(${baseName.toLowerCase()} : ${typename}) : R;`
+      const visitorMethodName =
+        `  visit${typename}${baseName}(${baseName.toLowerCase()} : ${typename}) : R;`;
       await this.appendToFile(encoder, visitorMethodName, path);
     }
 

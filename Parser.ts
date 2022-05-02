@@ -2,9 +2,14 @@ import { Token } from "./Token.ts";
 import { Binary, Expr, Grouping, Literal, Unary } from "./Expr.ts";
 import { TokenType } from "./TokenType.ts";
 import { Nova } from "./Nova.ts";
+import { Expression, Print, Stmt } from "./Stmt.ts";
 
 /* RULES FOR PRODUCTION
-
+program        → statement* EOF ;
+statement      → exprStmt
+               | printStmt ;
+exprStmt       → expression ";" ;
+printStmt      → "print" expression ";" ;
 expression     → equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -24,17 +29,39 @@ export class Parser {
   }
 
   /* entry point to parsing */
-  parse() : Expr | null{
-    try {
-      return this.expression();
-    } catch (_err: unknown) {
-      return null;
+  parse(): Array<Stmt> {
+    const statements: Array<Stmt> = [];
+    while (!this.isAtEnd()) {
+      statements.push(this.statement());
     }
+
+    return statements;
   }
 
   /* expression -> equality */
   private expression(): Expr {
     return this.equality();
+  }
+
+  /* statament -> exprStmt | printStmt;
+     exprStmt -> expression ";" ;
+     printStmt -> "print" expression ";" ;
+  */
+  private statement(): Stmt {
+    if (this.match(TokenType.PRINT)) return this.printStatement();
+    return this.expressionStatement();
+  }
+
+  private printStatement(): Stmt {
+    const value: Expr = this.expression();
+    this.consume(TokenType.SEMICOLON, "Expect ';' after value.");
+    return new Print(value);
+  }
+
+  private expressionStatement(): Stmt {
+    const expr: Expr = this.expression();
+    this.consume(TokenType.SEMICOLON, "Expect ';' after expression.");
+    return new Expression(expr);
   }
 
   /* equality -> comparison ( ( "!=" | "==") comparison)*
@@ -52,13 +79,20 @@ export class Parser {
   }
 
   /* comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-    consume the leftside of the comparison. While the next token is a comparator, grab it and the following term, 
+    consume the leftside of the comparison. While the next token is a comparator, grab it and the following term,
     then build a binary expression
   */
-  private comparison() : Expr {
+  private comparison(): Expr {
     let expr = this.term();
 
-    while (this.match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
+    while (
+      this.match(
+        TokenType.GREATER,
+        TokenType.GREATER_EQUAL,
+        TokenType.LESS,
+        TokenType.LESS_EQUAL,
+      )
+    ) {
       const operator = this.previous();
       const right = this.term();
       expr = new Binary(expr, operator, right);
@@ -68,10 +102,10 @@ export class Parser {
   }
 
   /* term           → factor ( ( "-" | "+" ) factor )* ;
-    consume the left side. While the next token is a minus or plus, 
-    consume the operator and following factor. 
+    consume the left side. While the next token is a minus or plus,
+    consume the operator and following factor.
   */
-  private term() : Expr {
+  private term(): Expr {
     let expr = this.factor();
     while (this.match(TokenType.PLUS, TokenType.MINUS)) {
       const operator = this.previous();
@@ -83,26 +117,25 @@ export class Parser {
   }
 
   /* factor           → unary ( ( "/" | "*" ) unary )* ;
-    consume the left side. While the next token is a slash or star, 
-    consume the operator and following unary. 
+    consume the left side. While the next token is a slash or star,
+    consume the operator and following unary.
   */
-    private factor() : Expr {
-      let expr = this.unary();
-      while (this.match(TokenType.SLASH, TokenType.STAR)) {
-        const operator = this.previous();
-        const right = this.unary();
-        expr = new Binary(expr, operator, right);
-      }
-  
-      return expr;
+  private factor(): Expr {
+    let expr = this.unary();
+    while (this.match(TokenType.SLASH, TokenType.STAR)) {
+      const operator = this.previous();
+      const right = this.unary();
+      expr = new Binary(expr, operator, right);
     }
 
+    return expr;
+  }
 
   /* unary          → ( "!" | "-" ) unary | primary ;
     if the following token is a unary operator, grab the next term and build a unary expression.
     else, fall to primary production
   */
-  private unary() : Expr {
+  private unary(): Expr {
     if (this.match(TokenType.BANG, TokenType.MINUS)) {
       const operator = this.previous();
       const right = this.unary();
@@ -113,25 +146,25 @@ export class Parser {
   }
 
   /* primary        → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
-    Just hardcode checking against these possible literals. If none, look for a paren, grab an expression, 
+    Just hardcode checking against these possible literals. If none, look for a paren, grab an expression,
     verify it closes the paren, then return the new grouping/
   */
- private primary() : Expr  {
-   if (this.match(TokenType.FALSE)) return new Literal(false);
-   if (this.match(TokenType.TRUE)) return new Literal(true);
-   if (this.match(TokenType.NIL)) return new Literal(null);
+  private primary(): Expr {
+    if (this.match(TokenType.FALSE)) return new Literal(false);
+    if (this.match(TokenType.TRUE)) return new Literal(true);
+    if (this.match(TokenType.NIL)) return new Literal(null);
 
-   if (this.match(TokenType.NUMBER, TokenType.STRING)) {
-     return new Literal(this.previous().literal);
-   }
-   if (this.match(TokenType.LEFT_PAREN)) {
-     const expr = this.expression();
-     this.consume(TokenType.RIGHT_PAREN, "Expected ')' after expression.");
-     return new Grouping(expr);
-   }
+    if (this.match(TokenType.NUMBER, TokenType.STRING)) {
+      return new Literal(this.previous().literal);
+    }
+    if (this.match(TokenType.LEFT_PAREN)) {
+      const expr = this.expression();
+      this.consume(TokenType.RIGHT_PAREN, "Expected ')' after expression.");
+      return new Grouping(expr);
+    }
 
-   throw this.error(this.peek(), "Expected expression.");
- }
+    throw this.error(this.peek(), "Expected expression.");
+  }
 
   /* if next token is any of the supplied types, consume and continue */
   private match(...types: Array<TokenType>): boolean {
@@ -146,13 +179,13 @@ export class Parser {
   }
 
   /* checks the next token is of the right type and moves past it */
-  private consume(type: TokenType, message: string)  : Token {
+  private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    
+
     throw this.error(this.peek(), message);
   }
 
-  private error(token: Token, message: string) : ParseError {
+  private error(token: Token, message: string): ParseError {
     Nova.errorAtToken(token, message);
     return new ParseError();
   }
@@ -163,7 +196,7 @@ export class Parser {
      else, if the next token is a special keyword that indicates the start of a new statement, so go back.
      else, consume the next token and keep going until the end
   */
-  private synchronize() : void {
+  private synchronize(): void {
     this.advance();
 
     while (!this.isAtEnd()) {
@@ -220,4 +253,4 @@ export class Parser {
   }
 }
 
-class ParseError extends Error {};
+class ParseError extends Error {}

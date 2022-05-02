@@ -1,4 +1,12 @@
-import { Binary, Expr, Grouping, Literal, Unary, Visitor } from "./Expr.ts";
+import {
+  Binary,
+  Expr,
+  Grouping,
+  Literal,
+  Unary,
+  Visitor as ExprVisitor,
+} from "./Expr.ts";
+import { Expression, Print, Stmt, Visitor as StmtVisitor } from "./Stmt.ts";
 import { Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
 import { RuntimeError } from "./RuntimeError.ts";
@@ -6,15 +14,24 @@ import { Nova } from "./Nova.ts";
 
 type NovaObject = unknown;
 
-export class Interpreter implements Visitor<NovaObject> {
-  interpret(expression: Expr | null): void {
-    if (expression === null) return;
+export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
+  interpret(statements: Array<Stmt>): void {
     try {
-      const val = this.evaluate(expression);
-      console.log(this.stringify(val));
+      for (const statement of statements) {
+        this.execute(statement);
+      }
     } catch (e) {
       Nova.runtimeError(e);
     }
+  }
+
+  visitExpressionStmt(stmt: Expression): void {
+    this.evaluate(stmt.expression);
+  }
+
+  visitPrintStmt(stmt: Print): void {
+    const value: NovaObject = this.evaluate(stmt.expression);
+    console.log(this.stringify(value));
   }
 
   visitLiteralExpr(expr: Literal): NovaObject {
@@ -113,6 +130,10 @@ export class Interpreter implements Visitor<NovaObject> {
 
   private evaluate(expr: Expr): NovaObject {
     return expr.accept(this);
+  }
+
+  private execute(stmt: Stmt): void {
+    stmt.accept(this);
   }
 
   private isTruthy(obj: NovaObject): boolean {

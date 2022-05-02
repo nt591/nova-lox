@@ -1,9 +1,10 @@
 import { readLines } from "https://deno.land/std@0.119.0/io/buffer.ts";
-import { AstPrinter } from "./AstPrinter.ts";
+import { AstPrinter as _AstPrinter } from "./AstPrinter.ts";
 import { Interpreter } from "./Interpreter.ts";
 import { Parser } from "./Parser.ts";
 import { RuntimeError } from "./RuntimeError.ts";
 import { Scanner } from "./Scanner.ts";
+import { Stmt } from "./Stmt.ts";
 import { Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
 
@@ -46,10 +47,10 @@ export class Nova {
     const scanner = new Scanner(source);
     const tokens = scanner.scanTokens();
     const parser = new Parser(tokens);
-    const expression = parser.parse();
+    const statements: Array<Stmt> = parser.parse();
 
     if (this.hadError) return; // parser syntax error
-    this.interpreter.interpret(expression);
+    this.interpreter.interpret(statements);
     // placeholder
     // console.log(new AstPrinter().print(expression));
   }
