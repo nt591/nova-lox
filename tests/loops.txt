@@ -1,9 +1,11 @@
+print "simple while loop";
 var x = 1;
 while (x < 10) {
   print x;
   x = x + 1;
 }
 
+print "complex for loop";
 var a = 0;
 var temp;
 
