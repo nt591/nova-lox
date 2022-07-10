@@ -17,6 +17,7 @@ import {
   Stmt,
   Var,
   Visitor as StmtVisitor,
+  While,
 } from "./Stmt.ts";
 import { Token } from "./Token.ts";
 import { TokenType } from "./TokenType.ts";
@@ -62,6 +63,13 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
       val = this.evaluate(stmt.initializer);
     }
     this.#environment.define(stmt.name.lexeme, val);
+  }
+
+  visitWhileStmt(stmt: While): void {
+    // run as long as condition is truthy
+    while (this.isTruthy(stmt.condition)) {
+      this.execute(stmt.body);
+    }
   }
 
   visitAssignExpr(expr: Assign): unknown {

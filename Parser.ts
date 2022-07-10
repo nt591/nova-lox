@@ -11,7 +11,7 @@ import {
 } from "./Expr.ts";
 import { TokenType } from "./TokenType.ts";
 import { Nova } from "./Nova.ts";
-import { Block, Expression, If, Print, Stmt, Var } from "./Stmt.ts";
+import { Block, Expression, If, Print, Stmt, Var, While } from "./Stmt.ts";
 
 /* RULES FOR PRODUCTION
 program        → declaration * EOF ;
@@ -19,9 +19,15 @@ declaration    → varDecl
                | statement ;
 varDecl        → "var" IDENTIFIER ( "=" expression)? ";" ;
 statement      → exprStmt
+               | forStmt
                | ifStmt
                | printStmt
+               | whileStmt
                | block ;
+forStmt        → "for" "(" (varDecl | exprStmt | ";")
+                  expression? ":"
+                  expression? ")" statement;
+whileStmt      → "while" "(" expression ")" statement;
 ifStmt         → "if" "(" expression ")" statement
                 ( "else" statement )? ;
 block          → "{" declaration* "}" ;
@@ -76,15 +82,91 @@ export class Parser {
       return null;
     }
   }
-  /* statament -> exprStmt | printStmt;
+  /* statement -> exprStmt | printStmt;
      exprStmt -> expression ";" ;
      printStmt -> "print" expression ";" ;
   */
   private statement(): Stmt {
+    if (this.match(TokenType.FOR)) return this.forStatement();
     if (this.match(TokenType.IF)) return this.ifStatement();
     if (this.match(TokenType.PRINT)) return this.printStatement();
+    if (this.match(TokenType.WHILE)) return this.whileStatement();
     if (this.match(TokenType.LEFT_BRACE)) return new Block(this.block());
     return this.expressionStatement();
+  }
+
+  /*
+    "for" works by just manually constructing a while loop node prefixed by an initializer
+    ex, transform looks like
+
+       for (var a = 0; i < 10, i++) {foobar}
+       becomes
+
+       var a = 0
+       while (i < 10) {
+        foobar
+        i++
+       }
+  */
+  private forStatement(): Stmt {
+    // desugar for statement into while, rather than implement new nodes
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.");
+    let initializer: Stmt | null;
+    if (this.match(TokenType.SEMICOLON)) {
+      // elide initializer, eg "for (; i < 10; i++) {}"
+      initializer = null;
+    } else if (this.match(TokenType.VAR)) {
+      // initializer is a variable
+      initializer = this.varDeclaration();
+    } else {
+      initializer = this.expressionStatement();
+    }
+
+    // condition, middle part of "for" param list
+    let condition: Expr | null = null;
+    // if next element isn't semi colon, it MUST be the expression to check condition
+    if (!this.check(TokenType.SEMICOLON)) {
+      condition = this.expression();
+    }
+    this.consume(TokenType.SEMICOLON, "Expect ';' after loop condition.");
+
+    // increment clause, last element, the usual i++ stuff
+    let increment: Expr | null = null;
+    // if the next element isn't closing paren, MUST be expression to trigger increment
+    if (!this.check(TokenType.RIGHT_PAREN)) {
+      increment = this.expression();
+    }
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after for loop clauses.");
+
+    let body = this.statement();
+
+    // if there's an increment clause, we run it after the body of the for loop
+    if (increment !== null) {
+      body = new Block([body, new Expression(increment)]);
+    }
+
+    // condition specifies the loop condition. If we don't have one, replace with new
+    condition ??= new Literal(true);
+    body = new While(condition, body);
+
+    /* run initializer once, if it exists, by just making a block where first node is init and second is while loop
+       ex, transform looks like
+
+       for (var a = 0; i < 10, i++) {foobar}
+       becomes
+
+       var a = 0
+       while (i < 10) {
+        foobar
+        i++
+       }
+    */
+
+    if (initializer !== null) {
+      body = new Block([initializer, body]);
+    }
+
+    return body;
   }
 
   private ifStatement(): Stmt {
@@ -172,6 +254,15 @@ export class Parser {
     }
     this.consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
     return new Var(name, initializer);
+  }
+
+  private whileStatement(): Stmt {
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.");
+    const condition = this.expression();
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.");
+    const body = this.statement();
+
+    return new While(condition, body);
   }
 
   /* equality -> comparison ( ( "!=" | "==") comparison)*
