@@ -67,7 +67,7 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
 
   visitWhileStmt(stmt: While): void {
     // run as long as condition is truthy
-    while (this.isTruthy(stmt.condition)) {
+    while (this.isTruthy(this.evaluate(stmt.condition))) {
       this.execute(stmt.body);
     }
   }

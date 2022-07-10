@@ -222,7 +222,8 @@ export class Scanner {
 
   private addToken(type: TokenType, literal?: literal): void {
     const text = this.source.substring(this.start, this.current);
-    const tokenLiteral = literal ? literal : null;
+    // explicit undefined check, because Javascript will treat literal 0 as false
+    const tokenLiteral = literal === undefined ? null : literal;
     this.tokens.push(new Token(type, text, tokenLiteral, this.line));
   }
 }
