@@ -1,6 +1,7 @@
 import {
   Assign,
   Binary,
+  Call,
   Expr,
   Grouping,
   Literal,
@@ -24,8 +25,8 @@ import { TokenType } from "./TokenType.ts";
 import { RuntimeError } from "./RuntimeError.ts";
 import { Nova } from "./Nova.ts";
 import { Environment } from "./Environment.ts";
-
-type NovaObject = unknown;
+import { NovaObject } from "./NovaObject.ts";
+import { NovaCallable } from "./NovaCallable.ts";
 
 export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
   #environment = new Environment(null);
@@ -176,6 +177,26 @@ export class Interpreter implements ExprVisitor<NovaObject>, StmtVisitor<void> {
 
     //unreachable
     return null;
+  }
+
+  visitCallExpr(expr: Call): NovaObject {
+    const callee = this.evaluate(expr.callee);
+
+    const args: NovaObject[] = [];
+    for (const arg of expr.args) {
+      args.push(this.evaluate());
+    }
+
+    // ensure that the callee isn't a weird type, eg a string
+    if (!(callee instanceof LoxCallable)) {
+      throw new RuntimeError(expr.paren, "Can only call functions and classes");
+    }
+    const fn: NovaCallable = callee as NovaCallable;
+    // ensure that we have the correct number of arguments to call the function
+    if (args.length != fn.arity()) {
+      throw new RuntimeError(expr.paren, `Expected ${fn.arity()} arguments but got ${args.length}.`)
+    }
+    return fn.call(this, args);
   }
 
   private checkNumberOperand(operator: Token, operand: NovaObject): void {
